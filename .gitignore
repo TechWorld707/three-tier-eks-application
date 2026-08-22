@@ -1,0 +1,38 @@
+# Python generated files
+__pycache__/
+*.py[cod]
+*.pyo
+
+# Python virtual environments
+.venv/
+venv/
+.test-venv/
+
+# Python tests and coverage
+.pytest_cache/
+.coverage
+coverage.xml
+htmlcov/
+
+# Environment files and secrets
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+
+# JavaScript dependencies and build output
+node_modules/
+dist/
+build/
+
+# Logs and temporary files
+*.log
+tmp/
+.tmp/
+
+# IDE and operating-system files
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
