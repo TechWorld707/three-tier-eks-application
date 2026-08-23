@@ -1,0 +1,6 @@
+Flask==3.1.1
+Flask-SQLAlchemy==3.1.1
+boto3==1.39.3
+gunicorn==23.0.0
+psycopg[binary]==3.2.9
+redis==6.2.0

@@ -1,0 +1,9 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Secure Profile Intake</title><link rel="stylesheet" href="style.css"></head>
+<body><main><h1>Profile intake</h1><p class="warning">Portfolio demonstration: enter sample data only.</p>
+<form id="profile-form"><label>Name<input name="name" maxlength="100" required></label>
+<label>Address<textarea name="address" minlength="5" maxlength="250" required></textarea></label>
+<label>Age<input name="age" type="number" min="0" max="120" required></label>
+<button type="submit">Save profile</button></form><p id="result" role="status"></p></main>
+<script src="app.js"></script></body></html>
