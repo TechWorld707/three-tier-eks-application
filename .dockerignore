@@ -1,0 +1,10 @@
+**
+
+!backend/
+!backend/app.py
+!backend/migrate.py
+!backend/requirements.txt
+
+!database/
+!database/migrations/
+!database/migrations/*.sql
