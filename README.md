@@ -2,7 +2,7 @@
 
 A containerized frontend and Flask API application built and tested with GitHub Actions, published to GitHub Container Registry, and deployed to Amazon EKS through Argo CD.
 
-This repository owns the application source code, automated tests, database migrations, and container build definitions. Kubernetes deployment configuration is maintained separately in the GitOps repository.
+This repository contains the application source code, automated tests, database migrations, and container build definitions. Kubernetes deployment configuration is maintained separately in the GitOps repository.
 
 ## Application architecture
 
@@ -16,11 +16,11 @@ flowchart TD
 
 ## Repository model
 
-The platform is separated into three repositories with different responsibilities:
+The platform is separated into three repositories with distinct responsibilities:
 
 | Repository | Responsibility |
 | --- | --- |
-| [`terraform-aws-eks-gitops-platform`](https://github.com/TechWorld707/terraform-aws-eks-gitops-platform) | Provisions AWS infrastructure, Amazon EKS, ECR repositories, identity controls, and platform4 initial platform5 platform7 platform add-ons |
+| [`terraform-aws-eks-gitops-platform`](https://github.com/TechWorld707/terraform-aws-eks-gitops-platform) | Provisions AWS infrastructure, Amazon EKS, ECR repositories, identity controls, and initial platform add-ons |
 | [`three-tier-eks-application`](https://github.com/TechWorld707/three-tier-eks-application) | Stores frontend and API source code, tests, database migrations, and container definitions |
 | [`three-tier-eks-gitops`](https://github.com/TechWorld707/three-tier-eks-gitops) | Defines the desired Kubernetes application state continuously reconciled by Argo CD |
 
@@ -39,7 +39,7 @@ The platform is separated into three repositories with different responsibilitie
 │   └── requirements-dev.txt
 ├── database/
 │   └── migrations/         # Versioned SQL migrations
-├── frontend/               # Frontend application and container definition
+├── frontend/               # Frontend application
 ├── .dockerignore
 ├── .gitignore
 ├── docker-compose.yml      # Local development environment
@@ -49,7 +49,7 @@ The platform is separated into three repositories with different responsibilitie
 
 ## Application responsibilities
 
-This repository contains:
+This repository owns:
 
 - Frontend source code
 - Backend Flask API
@@ -57,14 +57,14 @@ This repository contains:
 - Redis integration
 - Versioned database migrations
 - Backend automated tests
-- Docker build definitions
+- Container build definitions
 - Local Docker Compose configuration
 - GitHub Actions validation
 - Container image publishing to GHCR
 
 AWS infrastructure and Kubernetes deployment configuration are intentionally maintained outside this repository.
 
-## Running locally with Docker Compose
+## Running locally
 
 ### Prerequisites
 
@@ -74,14 +74,14 @@ Install:
 - Docker Compose
 - Git
 
-Clone the repository:
+### Clone the repository
 
 ```bash
 git clone https://github.com/TechWorld707/three-tier-eks-application.git
 cd three-tier-eks-application
 ```
 
-Build and start the local application:
+### Start the application
 
 ```bash
 docker compose up --build
@@ -105,7 +105,7 @@ Stop the application:
 docker compose down
 ```
 
-To remove local volumes as well:
+To remove the local volumes as well:
 
 ```bash
 docker compose down --volumes
@@ -136,12 +136,6 @@ Run the backend test suite:
 python -m pytest backend/tests
 ```
 
-A successful run should end with:
-
-```text
-3 passed
-```
-
 The test suite has been verified locally with Python 3.10 and pytest 8.4.1.
 
 Exit the virtual environment when finished:
@@ -156,15 +150,7 @@ Ensure `.venv/` is excluded by `.gitignore` before creating the environment insi
 
 Pull requests run automated application validation before changes are merged.
 
-The CI process is designed to verify:
-
-- Backend application behaviour
-- Python tests
-- Frontend source changes
-- Container build definitions
-- Application image builds
-
-The workflow result is displayed on commits and pull requests, providing evidence that changes passed the configured checks before being merged.
+The CI process verifies the application code, tests, and container build definitions. Workflow results are recorded on commits and pull requests, providing evidence that changes passed the configured checks before merging.
 
 ## Container publishing
 
@@ -177,39 +163,39 @@ The publishing workflow:
 3. Builds the frontend and backend images.
 4. Tags the images using the Git revision.
 5. Publishes the images to GHCR.
-6. Makes the immutable image references available for GitOps deployment.
+6. Makes the image references available for GitOps deployment.
 
-Container registry:
+GitHub Container Registry uses the following registry address:
 
 ```text
-ghcr.io/techworld707
+ghcr.io
 ```
 
-Deployment configuration is not changed directly in the application repository. The GitOps repository remains the source of truth for the Kubernetes deployment.
+The Kubernetes deployment state remains in the separate GitOps repository.
 
 ## Database migrations
 
-Versioned SQL migrations are stored in:
+Versioned SQL migrations are stored under:
 
 ```text
 database/migrations
 ```
 
-The backend includes a migration runner:
+The backend migration runner is:
 
 ```text
 backend/migrate.py
 ```
 
-The migration process records successfully applied migrations so that completed migrations can be skipped during later deployments.
+Database changes should be introduced through new migration files rather than by modifying migrations that have already been applied.
 
-Database migrations should complete successfully before a new application revision receives production traffic.
+This provides a repeatable and auditable database change history.
 
 ## GitOps delivery
 
 Application deployment is managed through the separate GitOps repository.
 
-The delivery flow is:
+The delivery process is:
 
 1. A developer changes application code.
 2. A pull request runs automated validation.
@@ -221,24 +207,24 @@ The delivery flow is:
 8. Argo CD synchronizes the application with Amazon EKS.
 9. Kubernetes performs the configured rollout.
 
-This separation provides a clear audit trail between application changes and deployment changes.
+This separation creates a clear audit trail between application changes and deployment changes.
 
 ## Configuration and secrets
 
-Runtime configuration should be supplied by the Kubernetes deployment layer.
+Runtime configuration is supplied by the Kubernetes deployment layer.
 
 Sensitive values must not be committed to this repository. Secrets should be stored in an approved external secrets service and injected into the application at runtime.
 
-Examples of runtime configuration include:
+Runtime configuration can include:
 
 - Database connection information
 - Redis connection information
 - AWS service configuration
 - Application environment settings
 
-## Health validation
+## Deployment validation
 
-After deployment, verify that the application workloads are running:
+After deployment, verify the application resources:
 
 ```bash
 kubectl get pods
@@ -246,36 +232,40 @@ kubectl get services
 kubectl get ingress
 ```
 
-Check application logs:
+Inspect the logs using the actual deployment names defined in the GitOps repository:
 
 ```bash
 kubectl logs deployment/FRONTEND_DEPLOYMENT_NAME
 kubectl logs deployment/BACKEND_DEPLOYMENT_NAME
 ```
 
-Replace the deployment names with the names defined in the GitOps repository.
-
-If the backend exposes its health endpoint, validate it through the configured ingress or load balancer:
+If the backend health endpoint is exposed, test it through the configured application address:
 
 ```bash
 curl --fail --show-error https://YOUR_APPLICATION_DOMAIN/health
 ```
 
-Replace `YOUR_APPLICATION_DOMAIN` with the deployed application address.
+Replace these placeholders with the values from the deployed environment:
 
-## Security considerations
+- `FRONTEND_DEPLOYMENT_NAME`
+- `BACKEND_DEPLOYMENT_NAME`
+- `YOUR_APPLICATION_DOMAIN`
 
-The application delivery model supports:
+## Security and delivery practices
 
-- Automated validation before merge
-- Immutable container image versioning
-- Separation of application and deployment responsibilities
+The application delivery model demonstrates:
+
+- Automated pull-request validation
+- Containerized application components
+- Immutable image versioning
+- Separation of build and deployment responsibilities
 - External runtime secret management
+- Version-controlled database migrations
 - Git-based deployment history
 - Argo CD reconciliation
-- Kubernetes NetworkPolicies defined in the GitOps repository
+- Kubernetes NetworkPolicies managed through GitOps
 
-The application and its dependencies should continue to be scanned and updated as new security issues are identified.
+Application code, container images, and dependencies should continue to be scanned and updated as security issues are identified.
 
 ## Related repositories
 
@@ -284,9 +274,9 @@ The application and its dependencies should continue to be scanned and updated a
 
 ## Project scope
 
-This project demonstrates the application component of a production-oriented EKS GitOps platform.
+This repository demonstrates the application component of a production-oriented EKS GitOps platform.
 
-It is intended to demonstrate:
+It demonstrates:
 
 - Containerized application development
 - Automated application testing
@@ -295,7 +285,7 @@ It is intended to demonstrate:
 - Kubernetes delivery through GitOps
 - Application configuration separated from source code
 
-Additional production requirements should be evaluated before operating a real workload.
+Additional organizational, operational, and security controls should be evaluated before using the application for a real production workload.
 
 ## Author
 
@@ -304,5 +294,4 @@ Additional production requirements should be evaluated before operating a real w
 DevOps and Platform Engineer focused on AWS, Kubernetes, Terraform, Docker, Ansible, CI/CD, and GitOps.
 
 - [GitHub profile](https://github.com/TechWorld707)
-- [Email](mailto:hento Blackjack)
-lkjdf9@ yahoo.com)
+- [Email](mailto:hento77@yahoo.com)
