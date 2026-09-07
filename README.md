@@ -1,5 +1,8 @@
 # Three-Tier EKS Application
 
+[![Application validation](https://github.com/TechWorld707/three-tier-eks-application/actions/workflows/application-pr.yml/badge.svg)](https://github.com/TechWorld707/three-tier-eks-application/actions/workflows/application-pr.yml)
+[![Publish images](https://github.com/TechWorld707/three-tier-eks-application/actions/workflows/publish-images.yml/badge.svg)](https://github.com/TechWorld707/three-tier-eks-application/actions/workflows/publish-images.yml)
+
 A containerized frontend and Flask API application built and tested with GitHub Actions, published to GitHub Container Registry, and deployed to Amazon EKS through Argo CD.
 
 This repository contains the application source code, automated tests, database migrations, and container build definitions. Kubernetes deployment configuration is maintained separately in the GitOps repository.
