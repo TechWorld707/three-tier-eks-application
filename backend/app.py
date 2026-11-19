@@ -9,6 +9,8 @@ from flask import Flask, jsonify, request
 from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy.exc import SQLAlchemyError
 
+from observability import configure_observability, record_database_error
+
 db = SQLAlchemy()
 
 
@@ -52,6 +54,7 @@ def create_app(config=None):
             "sqlite:///:memory:",
         ),
         SQLALCHEMY_TRACK_MODIFICATIONS=False,
+        SQLALCHEMY_ENGINE_OPTIONS={"hide_parameters": True},
         S3_BUCKET=os.getenv("S3_BUCKET", ""),
         S3_KMS_KEY_ARN=os.getenv("S3_KMS_KEY_ARN", ""),
         AWS_REGION=os.getenv("AWS_REGION", "us-east-1"),
@@ -62,13 +65,16 @@ def create_app(config=None):
         app.config.update(config)
 
     db.init_app(app)
+    with app.app_context():
+        configure_observability(app, db.engine)
 
     @app.get("/health")
     def health():
         try:
             db.session.execute(db.text("SELECT 1"))
             return jsonify(status="healthy"), 200
-        except SQLAlchemyError:
+        except SQLAlchemyError as error:
+            record_database_error(error)
             db.session.rollback()
             app.logger.exception("Database health check failed")
             return jsonify(status="unhealthy"), 503
@@ -127,7 +133,8 @@ def create_app(config=None):
         try:
             db.session.add(record)
             db.session.commit()
-        except SQLAlchemyError:
+        except SQLAlchemyError as error:
+            record_database_error(error)
             db.session.rollback()
             app.logger.exception("Failed to save submission")
             return jsonify(
@@ -180,7 +187,8 @@ def create_app(config=None):
 
         try:
             db.session.commit()
-        except SQLAlchemyError:
+        except SQLAlchemyError as error:
+            record_database_error(error)
             db.session.rollback()
             app.logger.exception(
                 "Failed to update archive status for %s",
