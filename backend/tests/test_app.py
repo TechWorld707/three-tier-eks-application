@@ -101,3 +101,16 @@ def test_invalid_submission_is_rejected(tmp_path):
 
     assert response.status_code == 400
     assert len(response.json["errors"]) == 3
+
+def test_api_metrics_and_request_id(tmp_path):
+    client = create_test_app(tmp_path).test_client()
+    request_id = "a" * 32
+
+    response = client.post("/api/submissions", json={}, headers={"X-Request-ID": request_id})
+
+    assert response.status_code == 400
+    assert response.headers["X-Request-ID"] == request_id
+    metrics = client.get("/metrics").get_data(as_text=True)
+    assert 'three_tier_http_requests_total{method="POST",route="/api/submissions",status="400"}' in metrics
+    assert 'three_tier_http_request_duration_seconds_count{method="POST",route="/api/submissions"}' in metrics
+    assert "three_tier_db_pool_connections_in_use 0.0" in metrics
