@@ -60,3 +60,89 @@ jobs:
           push: true
           tags: ${{ steps.metadata.outputs.tags }}
           labels: ${{ steps.metadata.outputs.labels }}
+
+  promote-dev:
+    name: Open dev GitOps promotion PR
+    needs: publish
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    permissions: {}
+
+    steps:
+      - name: Create GitOps token
+        id: gitops-token
+        uses: actions/create-github-app-token@v3
+        with:
+          client-id: ${{ vars.GITOPS_APP_CLIENT_ID }}
+          private-key: ${{ secrets.GITOPS_APP_PRIVATE_KEY }}
+          owner: TechWorld707
+          repositories: three-tier-eks-gitops
+          permission-contents: write
+          permission-pull-requests: write
+
+      - name: Check out GitOps main
+        uses: actions/checkout@v6
+        with:
+          repository: TechWorld707/three-tier-eks-gitops
+          ref: main
+          token: ${{ steps.gitops-token.outputs.token }}
+
+      - name: Update and validate dev image tags
+        id: update
+        shell: bash
+        run: |
+          python3 - <<'PYTHON'
+          import os
+          import re
+          from pathlib import Path
+
+          sha = os.environ["GITHUB_SHA"]
+          if not re.fullmatch(r"[0-9a-f]{40}", sha):
+              raise SystemExit(f"Unexpected commit SHA: {sha}")
+
+          manifest = Path("apps/dev/stack.yaml")
+          contents = manifest.read_bytes()
+          for component in ("backend", "frontend"):
+              image = f"ghcr.io/techworld707/three-tier-{component}".encode()
+              pattern = rb"(?m)^([ \t]*image:[ \t]*" + re.escape(image) + rb":)sha-[0-9a-f]{40}(?=[ \t]*\r?$)"
+              contents, count = re.subn(pattern, lambda match: match[1] + f"sha-{sha}".encode(), contents)
+              if count != 1:
+                  raise SystemExit(f"Expected one SHA-pinned {component} image, found {count}")
+          manifest.write_bytes(contents)
+          PYTHON
+
+          kubectl kustomize apps/dev > "$RUNNER_TEMP/dev-manifests.yaml"
+          for component in backend frontend; do
+            grep -Fq "image: ghcr.io/techworld707/three-tier-${component}:sha-${GITHUB_SHA}" "$RUNNER_TEMP/dev-manifests.yaml"
+          done
+          git diff --check
+          if ! git diff --quiet -- apps/dev/stack.yaml; then
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Open GitOps pull request
+        if: steps.update.outputs.changed == 'true'
+        env:
+          GH_TOKEN: ${{ steps.gitops-token.outputs.token }}
+        shell: bash
+        run: |
+          repository=TechWorld707/three-tier-eks-gitops
+          branch="promote/dev-${GITHUB_SHA}"
+          existing_pr=$(gh pr list --repo "$repository" --base main --head "$branch" --state open --json url --jq '.[0].url // empty')
+          if [[ -n "$existing_pr" ]]; then
+            printf 'Promotion PR already open: %s\n' "$existing_pr"
+            exit 0
+          fi
+
+          remote_branch=$(git ls-remote --heads origin "refs/heads/$branch")
+          if [[ -z "$remote_branch" ]]; then
+            git switch -c "$branch"
+            git add -- apps/dev/stack.yaml
+            git -c user.name='GitOps promotion' -c user.email='gitops-promotion@users.noreply.github.com'  \
+            commit -m "chore(dev): promote application images to sha-${GITHUB_SHA}"
+            git push origin "HEAD:refs/heads/$branch"
+          fi
+
+          gh pr create --repo "$repository" --base main --head "$branch" \
+            --title "chore(dev): promote application images to sha-${GITHUB_SHA:0:12}" \
+            --body "Update the frontend and backend image tags to \`sha-${GITHUB_SHA}\`. Published by [application workflow run](${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID})."
